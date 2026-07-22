@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ShamScouting - Pit Scout & QR</title>
+    
+    <meta name="theme-color" content="#09090B">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PitScout">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root {
+            --bg-canvas: #09090B;
+            --bg-card: #18181B;
+            --border: #27272A;
+            --accent: #2563EB;
+            --accent-hover: #1D4ED8;
+            --text: #FAFAFA;
+            --text-muted: #A1A1AA;
+            --danger: #EF4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text);
+            padding: 12px;
+            padding-bottom: 40px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        h1 { font-size: 1.25rem; font-weight: 700; }
+        h2 { font-size: 1.1rem; color: var(--accent); margin-bottom: 12px; }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="text"], input[type="number"], select, textarea {
+            background-color: var(--bg-canvas);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 1rem;
+            min-height: 48px;
+            width: 100%;
+            outline: none;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+            border-color: var(--accent);
+        }
+
+        /* Custom Toggle Switch */
+        .toggle-field {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 48px;
+            padding: 4px 0;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 56px;
+            height: 32px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--border);
+            transition: .2s;
+            border-radius: 32px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 4px;
+            bottom: 4px;
+            background-color: var(--text);
+            transition: .2s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        /* Action Buttons */
+        .btn-submit {
+            width: 100%;
+            min-height: 52px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .btn-clear {
+            width: 100%;
+            min-height: 48px;
+            background-color: transparent;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        /* Modal Overlay for QR */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 100;
+            padding: 20px;
+            box-sizing: border-box;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 24px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        #qrcode {
+            background-color: #FFFFFF;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 16px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .payload-preview {
+            background: var(--bg-canvas);
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            color: #10B981;
+            font-family: monospace;
+            font-size: 0.75rem;
+            word-break: break-all;
+            margin-bottom: 12px;
+            width: 100%;
+        }
+
+        .char-count {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Reefscape Pit Scout</h1>
+        <span id="save-status" style="font-size: 0.75rem; color: var(--text-muted);">Saved</span>
+    </header>
+
+    <form id="pitForm" onsubmit="event.preventDefault();">
+        
+        <div class="card">
+            <h2>1. Pre-Setup</h2>
+            <div class="grid-2">
+                <div class="field-group">
+                    <label for="scoutId">Scout ID / Name</label>
+                    <input type="text" id="scoutId" placeholder="e.g. AlexM" required>
+                </div>
+                <div class="field-group">
+                    <label for="teamNumber">Team #</label>
+                    <input type="number" id="teamNumber" placeholder="254" required min="1">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>2. Drivetrain Specs</h2>
+            <div class="grid-2">
+                <div class="field-group">
+                    <label for="driveType">Drive Type</label>
+                    <select id="driveType">
+                        <option value="SW">Swerve (SW)</option>
+                        <option value="TK">Tank (TK)</option>
+                        <option value="MC">Mecanum (MC)</option>
+                        <option value="OT">Other (OT)</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label for="driveMotors">Drive Motors</label>
+                    <select id="driveMotors">
+                        <option value="KRAK">Kraken X60 (KRAK)</option>
+                        <option value="FALC">Falcon 500 (FALC)</option>
+                        <option value="NEO">NEO (NEO)</option>
+                        <option value="OTH">Other (OTH)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="field-group">
+                    <label for="weight">Weight (lbs)</label>
+                    <input type="number" id="weight" step="0.1" placeholder="118.5" min="0" max="150">
+                </div>
+                <div class="field-group">
+                    <label for="framePerimeter">Frame Perim (in)</label>
+                    <input type="number" id="framePerimeter" step="0.1" placeholder="112" min="0" max="200">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>3. Mechanism Capabilities</h2>
+            <div class="grid-2">
+                <div class="field-group">
+                    <label for="coralIntake">Coral Intake</label>
+                    <select id="coralIntake">
+                        <option value="G">Ground (G)</option>
+                        <option value="C">Station (C)</option>
+                        <option value="B">Both (B)</option>
+                        <option value="N">None (N)</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label for="algaeIntake">Algae Intake Method</label>
+                    <select id="algaeIntake">
+                        <option value="AR">Active Rollers (AR)</option>
+                        <option value="CL">Claw (CL)</option>
+                        <option value="PO">Popper (PO)</option>
+                        <option value="NO">None (NO)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="field-group">
+                    <label for="maxCoral">Max Coral Level</label>
+                    <select id="maxCoral">
+                        <option value="L4">L4</option>
+                        <option value="L3">L3</option>
+                        <option value="L2">L2</option>
+                        <option value="L1">L1</option>
+                        <option value="N">None</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label for="maxAlgae">Max Algae Target</label>
+                    <select id="maxAlgae">
+                        <option value="BOTH">Both (BOTH)</option>
+                        <option value="PROC">Processor (PROC)</option>
+                        <option value="NET">Net (NET)</option>
+                        <option value="NONE">None (NONE)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>4. Endgame & Auto Setup</h2>
+            <div class="grid-2">
+                <div class="field-group">
+                    <label for="climbCap">Climber Cap</label>
+                    <select id="climbCap">
+                        <option value="DEEP">Deep Cage (DEEP)</option>
+                        <option value="SHAL">Shallow Cage (SHAL)</option>
+                        <option value="PARK">Park Only (PARK)</option>
+                        <option value="NONE">None (NONE)</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label for="startPos">Auto Start Pos</label>
+                    <select id="startPos">
+                        <option value="C">Center (C)</option>
+                        <option value="L">Left (L)</option>
+                        <option value="R">Right (R)</option>
+                        <option value="F">Flexible (F)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="toggle-field">
+                <label for="autoL4">Auto L4 Coral Capable</label>
+                <label class="switch">
+                    <input type="checkbox" id="autoL4">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-field">
+                <label for="autoLeave">Auto Leave Zone Capable</label>
+                <label class="switch">
+                    <input type="checkbox" id="autoLeave">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-field">
+                <label for="autoNet">Auto Net Algae Capable</label>
+                <label class="switch">
+                    <input type="checkbox" id="autoNet">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-field">
+                <label for="vision">Vision System Present</label>
+                <label class="switch">
+                    <input type="checkbox" id="vision">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>5. Qualitative Notes</h2>
+            <div class="field-group">
+                <label for="pitNotes">Pit Notes (Max ~30 chars recommended)</label>
+                <input type="text" id="pitNotes" placeholder="Clean wiring, fast intake" maxlength="40">
+            </div>
+        </div>
+
+        <button type="button" class="btn-submit" onclick="generateQR()">Generate QR Code</button>
+        <button type="button" class="btn-clear" onclick="confirmClear()">Clear Form Data</button>
+
+    </form>
+
+    <div id="qrModal" class="modal">
+        <div class="modal-content">
+            <h2>Scan Pit Data</h2>
+            <div id="qrcode"></div>
+            <div class="payload-preview" id="payloadDisplay"></div>
+            <div class="char-count" id="charCountDisplay"></div>
+            <button type="button" class="btn-submit" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = "ShamScout_PitData_v1";
+        let qrcodeInstance = null;
+
+        function sanitizeInput(val) {
+            return String(val || '').replace(/\|/g, '').trim();
+        }
+
+        function autoSave() {
+            const formData = {
+                scoutId: document.getElementById('scoutId').value,
+                teamNumber: document.getElementById('teamNumber').value,
+                driveType: document.getElementById('driveType').value,
+                driveMotors: document.getElementById('driveMotors').value,
+                weight: document.getElementById('weight').value,
+                framePerimeter: document.getElementById('framePerimeter').value,
+                coralIntake: document.getElementById('coralIntake').value,
+                algaeIntake: document.getElementById('algaeIntake').value,
+                maxCoral: document.getElementById('maxCoral').value,
+                maxAlgae: document.getElementById('maxAlgae').value,
+                climbCap: document.getElementById('climbCap').value,
+                autoL4: document.getElementById('autoL4').checked,
+                autoLeave: document.getElementById('autoLeave').checked,
+                autoNet: document.getElementById('autoNet').checked,
+                startPos: document.getElementById('startPos').value,
+                vision: document.getElementById('vision').checked,
+                pitNotes: document.getElementById('pitNotes').value
+            };
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+            
+            const statusEl = document.getElementById('save-status');
+            statusEl.innerText = "Saving...";
+            setTimeout(() => { statusEl.innerText = "Saved"; }, 300);
+        }
+
+        function loadSavedData() {
+            const dataRaw = localStorage.getItem(STORAGE_KEY);
+            if (!dataRaw) return;
+
+            try {
+                const data = JSON.parse(dataRaw);
+                document.getElementById('scoutId').value = data.scoutId || "";
+                document.getElementById('teamNumber').value = data.teamNumber || "";
+                document.getElementById('driveType').value = data.driveType || "SW";
+                document.getElementById('driveMotors').value = data.driveMotors || "KRAK";
+                document.getElementById('weight').value = data.weight || "";
+                document.getElementById('framePerimeter').value = data.framePerimeter || "";
+                document.getElementById('coralIntake').value = data.coralIntake || "G";
+                document.getElementById('algaeIntake').value = data.algaeIntake || "AR";
+                document.getElementById('maxCoral').value = data.maxCoral || "L4";
+                document.getElementById('maxAlgae').value = data.maxAlgae || "BOTH";
+                document.getElementById('climbCap').value = data.climbCap || "DEEP";
+                document.getElementById('autoL4').checked = !!data.autoL4;
+                document.getElementById('autoLeave').checked = !!data.autoLeave;
+                document.getElementById('autoNet').checked = !!data.autoNet;
+                document.getElementById('startPos').value = data.startPos || "C";
+                document.getElementById('vision').checked = !!data.vision;
+                document.getElementById('pitNotes').value = data.pitNotes || "";
+            } catch (e) {
+                console.error("Failed to restore saved pit data", e);
+            }
+        }
+
+        function confirmClear() {
+            if (confirm("Clear all pit scouting inputs?")) {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload();
+            }
+        }
+
+        function generateQR() {
+            const form = document.getElementById('pitForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            // Extract & sanitize values
+            const scoutId = sanitizeInput(document.getElementById('scoutId').value);
+            const team = sanitizeInput(document.getElementById('teamNumber').value);
+            const drive = document.getElementById('driveType').value;
+            const motors = document.getElementById('driveMotors').value;
+            const weight = sanitizeInput(document.getElementById('weight').value);
+            const perim = sanitizeInput(document.getElementById('framePerimeter').value);
+            const coralIn = document.getElementById('coralIntake').value;
+            const algaeIn = document.getElementById('algaeIntake').value;
+            const maxCoral = document.getElementById('maxCoral').value;
+            const maxAlgae = document.getElementById('maxAlgae').value;
+            const climb = document.getElementById('climbCap').value;
+            const autoL4 = document.getElementById('autoL4').checked ? "1" : "0";
+            const autoLeave = document.getElementById('autoLeave').checked ? "1" : "0";
+            const autoNet = document.getElementById('autoNet').checked ? "1" : "0";
+            const startPos = document.getElementById('startPos').value;
+            const vision = document.getElementById('vision').checked ? "1" : "0";
+            const notes = sanitizeInput(document.getElementById('pitNotes').value);
+
+            // Construct pipe-delimited payload (Lead character: 'P')
+            const payload = `P|${scoutId}|${team}|${drive}|${motors}|${weight}|${perim}|${coralIn}|${algaeIn}|${maxCoral}|${maxAlgae}|${climb}|${autoL4}|${autoLeave}|${autoNet}|${startPos}|${vision}|${notes}`;
+
+            // Render Payload String & Meta
+            document.getElementById('payloadDisplay').innerText = payload;
+            document.getElementById('charCountDisplay').innerText = `Payload Size: ${payload.length} chars (Target < 150)`;
+
+            // Render QR Code
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = ""; // Clear existing QR
+
+            qrcodeInstance = new QRCode(qrContainer, {
+                text: payload,
+                width: 240,
+                height: 240,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.L // Low error correction for lower matrix density
+            });
+
+            document.getElementById('qrModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('qrModal').style.display = 'none';
+        }
+
+        // Auto-save listeners
+        document.addEventListener("DOMContentLoaded", () => {
+            loadSavedData();
+            const inputs = document.querySelectorAll("input, select, textarea");
+            inputs.forEach(input => {
+                input.addEventListener("input", autoSave);
+                input.addEventListener("change", autoSave);
+            });
+        });
+    </script>
+</body>
+</html>
