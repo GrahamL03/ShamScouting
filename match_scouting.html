@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ShamScouting - Match Scout</title>
+    
+    <meta name="theme-color" content="#09090B">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ShamScout">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%232563EB'/><text y='.9em' font-size='90'>🤖</text></svg>">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root {
+            --bg-canvas: #09090B;
+            --bg-card: #18181B;
+            --border: #27272A;
+            --accent: #2563EB;
+            --accent-hover: #1D4ED8;
+            --text: #FAFAFA;
+            --text-muted: #A1A1AA;
+            --red-alliance: #DC2626;
+            --blue-alliance: #2563EB;
+            --danger: #EF4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text);
+            padding: 12px;
+            padding-bottom: 80px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        h1 { font-size: 1.25rem; font-weight: 700; }
+        h2 { font-size: 1.1rem; color: var(--accent); margin-bottom: 12px; }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input[type="text"], input[type="number"], select, textarea {
+            background-color: var(--bg-canvas);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 1rem;
+            min-height: 48px;
+            width: 100%;
+            outline: none;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus, select:focus, textarea:focus {
+            border-color: var(--accent);
+        }
+
+        /* Custom Toggle Switch */
+        .toggle-field {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 48px;
+            padding: 4px 0;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 56px;
+            height: 32px;
+        }
+
+        .switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--border);
+            transition: .2s;
+            border-radius: 32px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 24px;
+            width: 24px;
+            left: 4px;
+            bottom: 4px;
+            background-color: var(--text);
+            transition: .2s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        /* Alliance Selector Styling */
+        .alliance-btn {
+            min-height: 48px;
+            border: 1px solid var(--border);
+            background: var(--bg-canvas);
+            color: var(--text-muted);
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .alliance-btn.red.active { background-color: var(--red-alliance); color: white; border-color: var(--red-alliance); }
+        .alliance-btn.blue.active { background-color: var(--blue-alliance); color: white; border-color: var(--blue-alliance); }
+
+        /* Counter Styling */
+        .counter-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .counter-label { font-size: 0.95rem; font-weight: 500; }
+
+        .counter-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-counter {
+            min-width: 48px;
+            min-height: 48px;
+            background-color: var(--bg-canvas);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .btn-counter:active { background-color: var(--border); }
+
+        .counter-val {
+            min-width: 36px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* Quick Tags */
+        .tag-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+
+        .tag-chip {
+            padding: 10px 14px;
+            background-color: var(--bg-canvas);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+
+        .tag-chip.selected {
+            background-color: var(--accent);
+            color: var(--text);
+            border-color: var(--accent);
+        }
+
+        /* Action Buttons */
+        .btn-submit {
+            width: 100%;
+            min-height: 52px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .btn-clear {
+            width: 100%;
+            min-height: 48px;
+            background-color: transparent;
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        /* Modal Overlay for QR Output */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 100;
+            padding: 20px;
+            box-sizing: border-box;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+
+        #qrcode {
+            background: white;
+            padding: 16px;
+            border-radius: 8px;
+            display: inline-block;
+            margin: 12px 0;
+        }
+
+        #qrcode img {
+            margin: 0 auto;
+        }
+
+        pre {
+            background: var(--bg-canvas);
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            color: #10B981;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            font-size: 0.75rem;
+            max-height: 80px;
+            overflow-y: auto;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Reefscape Scout</h1>
+        <span id="save-status" style="font-size: 0.75rem; color: var(--text-muted);">Saved</span>
+    </header>
+
+    <form id="scoutForm" onsubmit="event.preventDefault();">
+        
+        <div class="card">
+            <h2>1. Pre-Match Setup</h2>
+            <div class="grid-2">
+                <div class="field-group">
+                    <label for="scoutName">Scout Name/ID</label>
+                    <input type="text" id="scoutName" required>
+                </div>
+                <div class="field-group">
+                    <label for="matchNumber">Match #</label>
+                    <input type="number" id="matchNumber" required min="1">
+                </div>
+            </div>
+
+            <div class="field-group">
+                <label>Alliance</label>
+                <div class="grid-2">
+                    <button type="button" class="alliance-btn red" id="btn-red" onclick="setAlliance('Red')">Red</button>
+                    <button type="button" class="alliance-btn blue" id="btn-blue" onclick="setAlliance('Blue')">Blue</button>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="field-group">
+                    <label for="driverStation">Station Slot</label>
+                    <select id="driverStation">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label for="teamNumber">Team #</label>
+                    <input type="number" id="teamNumber" required min="1">
+                </div>
+            </div>
+
+            <div class="toggle-field">
+                <label for="noShow">No Show</label>
+                <label class="switch">
+                    <input type="checkbox" id="noShow">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>2. Autonomous Phase</h2>
+            <div class="toggle-field">
+                <label for="autoTaxi">Taxi Auto</label>
+                <label class="switch">
+                    <input type="checkbox" id="autoTaxi">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <hr style="border-color: var(--border); margin: 12px 0;">
+            <label style="display:block; margin-bottom:8px;">Coral Scored</label>
+            <div id="auto-coral-counters"></div>
+
+            <hr style="border-color: var(--border); margin: 12px 0;">
+            <label style="display:block; margin-bottom:8px;">Algae Operations & Misses</label>
+            <div id="auto-algae-counters"></div>
+        </div>
+
+        <div class="card">
+            <h2>3. TeleOp Phase</h2>
+            <label style="display:block; margin-bottom:8px;">Coral Scored</label>
+            <div id="tele-coral-counters"></div>
+
+            <hr style="border-color: var(--border); margin: 12px 0;">
+            <label style="display:block; margin-bottom:8px;">Algae Operations</label>
+            <div id="tele-algae-counters"></div>
+
+            <hr style="border-color: var(--border); margin: 12px 0;">
+
+            <div class="field-group">
+                <label for="hpPreference">Human Player Preference</label>
+                <select id="hpPreference">
+                    <option value="None / Unclear">None / Unclear</option>
+                    <option value="Coral Station">Coral Station</option>
+                    <option value="Processor">Processor</option>
+                    <option value="Both">Both Balanced</option>
+                </select>
+            </div>
+
+            <div class="toggle-field">
+                <label for="facedDefense">Faced Defense</label>
+                <label class="switch">
+                    <input type="checkbox" id="facedDefense">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="toggle-field">
+                <label for="playedDefense">Played Defense</label>
+                <label class="switch">
+                    <input type="checkbox" id="playedDefense">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="field-group">
+                <label for="defenseRating">Defense Rating (1-5)</label>
+                <select id="defenseRating">
+                    <option value="0">N/A (No Defense)</option>
+                    <option value="1">1 - Poor</option>
+                    <option value="2">2 - Below Average</option>
+                    <option value="3">3 - Average</option>
+                    <option value="4">4 - Effective</option>
+                    <option value="5">5 - Dominant</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>4. Endgame Phase</h2>
+            <div class="field-group">
+                <label for="bargeResult">Barge Result</label>
+                <select id="bargeResult">
+                    <option value="None / Parked">None / Parked</option>
+                    <option value="Shallow Cage">Shallow Cage</option>
+                    <option value="Deep Cage">Deep Cage</option>
+                    <option value="Failed Climb">Failed Climb</option>
+                </select>
+            </div>
+
+            <div class="field-group">
+                <label for="climbSpeed">Climb Speed</label>
+                <select id="climbSpeed">
+                    <option value="N/A">N/A</option>
+                    <option value="Slow">Slow (>10s)</option>
+                    <option value="Medium">Medium (5-10s)</option>
+                    <option value="Fast">Fast (<5s)</option>
+                </select>
+            </div>
+
+            <div class="toggle-field">
+                <label for="climbedPartner">Climbed with Partner</label>
+                <label class="switch">
+                    <input type="checkbox" id="climbedPartner">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>5. Post-Match & Reliability</h2>
+            <div class="field-group">
+                <label for="driverSkill">Driver Skill Rating</label>
+                <select id="driverSkill">
+                    <option value="3">3 - Average</option>
+                    <option value="1">1 - Poor Controls</option>
+                    <option value="2">2 - Rough</option>
+                    <option value="4">4 - Good</option>
+                    <option value="5">5 - Exceptional</option>
+                </select>
+            </div>
+
+            <div class="field-group">
+                <label for="mechFailure">Mechanical / System Failure</label>
+                <select id="mechFailure">
+                    <option value="No">No Issues</option>
+                    <option value="Minor Lag / Glitch">Minor Lag / Glitch</option>
+                    <option value="Completely Dead">Completely Dead</option>
+                </select>
+            </div>
+
+            <div class="toggle-field">
+                <label for="tippedOver">Tipped Over</label>
+                <label class="switch">
+                    <input type="checkbox" id="tippedOver">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div id="fouls-counter-container"></div>
+
+            <div class="field-group" style="margin-top: 12px;">
+                <label>Quick Tags</label>
+                <div class="tag-grid" id="quick-tags">
+                    <div class="tag-chip" onclick="toggleTag(this, '#FastIntake')">#FastIntake</div>
+                    <div class="tag-chip" onclick="toggleTag(this, '#FragileArm')">#FragileArm</div>
+                    <div class="tag-chip" onclick="toggleTag(this, '#BrownoutProne')">#BrownoutProne</div>
+                    <div class="tag-chip" onclick="toggleTag(this, '#GoodFeeder')">#GoodFeeder</div>
+                    <div class="tag-chip" onclick="toggleTag(this, '#SlowAlignment')">#SlowAlignment</div>
+                </div>
+            </div>
+
+            <div class="field-group" style="margin-top: 12px;">
+                <label for="notes">Free Text Notes</label>
+                <textarea id="notes" rows="3" placeholder="Strategy details, defense, breakdown details..."></textarea>
+            </div>
+        </div>
+
+        <button type="button" class="btn-submit" onclick="submitData()">Generate QR Code</button>
+        <button type="button" class="btn-clear" onclick="confirmClear()">Clear Form Data</button>
+
+    </form>
+
+    <div id="jsonModal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 4px;">Scout QR Code</h2>
+            <p id="charCount" style="font-size:0.75rem; color: var(--text-muted);"></p>
+            
+            <div id="qrcode"></div>
+
+            <p style="font-size:0.75rem; color: var(--text-muted); margin-bottom: 4px;">Compressed Payload String:</p>
+            <pre id="jsonOutput"></pre>
+            
+            <button type="button" class="btn-submit" style="margin-top: 12px;" onclick="closeModal()">Close & Reset Form</button>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = "ShamScout_MatchData_v1";
+        
+        let alliance = "";
+        let tags = new Set();
+        let qrInstance = null;
+        let counters = {
+            autoCoralL1: 0, autoCoralL2: 0, autoCoralL3: 0, autoCoralL4: 0,
+            autoAlgaeRemoved: 0, autoAlgaeProcessor: 0, autoAlgaeNet: 0, autoMisses: 0,
+            teleCoralL1: 0, teleCoralL2: 0, teleCoralL3: 0, teleCoralL4: 0,
+            teleAlgaeRemoved: 0, teleAlgaeProcessor: 0, teleAlgaeNet: 0,
+            fouls: 0
+        };
+
+        const HP_MAP_ENCODE = { "None / Unclear": "N", "Processor": "G", "Coral Station": "F", "Both": "B" };
+        const BARGE_MAP_ENCODE = { "None / Parked": "NONE", "Shallow Cage": "SHALLOW", "Deep Cage": "DEEP", "Failed Climb": "FAIL" };
+        const CLIMB_MAP_ENCODE = { "N/A": "NA", "Slow": "SLOW", "Medium": "MED", "Fast": "FAST" };
+        const DIED_MAP_ENCODE = { "No": 0, "Minor Lag / Glitch": 1, "Completely Dead": 2 };
+        const TAG_MAP_ENCODE = { "#FastIntake": "FAST", "#FragileArm": "FRAG", "#BrownoutProne": "BROWN", "#GoodFeeder": "FEED", "#SlowAlignment": "SLOW" };
+
+        function compressFormData(data) {
+            const slot = (data.metadata.alliance === "Red" ? "R" : "B") + data.metadata.driverStation;
+            const tagCodes = (data.postMatch.tags || []).map(t => TAG_MAP_ENCODE[t] || t).join(',');
+            const sanitizedNotes = (data.postMatch.notes || "").replace(/\|/g, "/");
+
+            return [
+                data.metadata.matchNumber,
+                data.metadata.teamNumber,
+                slot,
+                data.autonomous.taxi ? 1 : 0,
+                data.autonomous.coral.l1,
+                data.autonomous.coral.l2,
+                data.autonomous.coral.l3,
+                data.autonomous.coral.l4,
+                data.autonomous.algae.removed,
+                data.autonomous.algae.processor,
+                data.autonomous.algae.net,
+                data.autonomous.misses,
+                data.teleop.coral.l1,
+                data.teleop.coral.l2,
+                data.teleop.coral.l3,
+                data.teleop.coral.l4,
+                data.teleop.algae.removed,
+                data.teleop.algae.processor,
+                data.teleop.algae.net,
+                HP_MAP_ENCODE[data.teleop.humanPlayerPreference] || "N",
+                data.teleop.facedDefense ? 1 : 0,
+                data.teleop.playedDefense ? 1 : 0,
+                data.teleop.defenseRating,
+                BARGE_MAP_ENCODE[data.endgame.bargeResult] || "NONE",
+                CLIMB_MAP_ENCODE[data.endgame.climbSpeed] || "NA",
+                data.endgame.climbedWithPartner ? 1 : 0,
+                data.postMatch.driverSkill,
+                DIED_MAP_ENCODE[data.postMatch.mechanicalFailure] ?? 0,
+                data.postMatch.tippedOver ? 1 : 0,
+                data.postMatch.fouls,
+                tagCodes,
+                sanitizedNotes
+            ].join('|');
+        }
+
+        function createCounterUI(id, label) {
+            return `
+                <div class="counter-row">
+                    <span class="counter-label">${label}</span>
+                    <div class="counter-controls">
+                        <button type="button" class="btn-counter" onclick="updateCounter('${id}', -1)">-</button>
+                        <span class="counter-val" id="val-${id}">0</span>
+                        <button type="button" class="btn-counter" onclick="updateCounter('${id}', 1)">+</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function initCounters() {
+            document.getElementById('auto-coral-counters').innerHTML = 
+                createCounterUI('autoCoralL1', 'L1 Scored') +
+                createCounterUI('autoCoralL2', 'L2 Scored') +
+                createCounterUI('autoCoralL3', 'L3 Scored') +
+                createCounterUI('autoCoralL4', 'L4 Scored');
+
+            document.getElementById('auto-algae-counters').innerHTML = 
+                createCounterUI('autoAlgaeRemoved', 'Algae Removed') +
+                createCounterUI('autoAlgaeProcessor', 'Algae to Processor') +
+                createCounterUI('autoAlgaeNet', 'Algae to Net') +
+                createCounterUI('autoMisses', 'Auto Misses');
+
+            document.getElementById('tele-coral-counters').innerHTML = 
+                createCounterUI('teleCoralL1', 'L1 Scored') +
+                createCounterUI('teleCoralL2', 'L2 Scored') +
+                createCounterUI('teleCoralL3', 'L3 Scored') +
+                createCounterUI('teleCoralL4', 'L4 Scored');
+
+            document.getElementById('tele-algae-counters').innerHTML = 
+                createCounterUI('teleAlgaeRemoved', 'Algae Removed') +
+                createCounterUI('teleAlgaeProcessor', 'Algae to Processor') +
+                createCounterUI('teleAlgaeNet', 'Algae to Net');
+
+            document.getElementById('fouls-counter-container').innerHTML = 
+                createCounterUI('fouls', 'Fouls / Tech Fouls');
+        }
+
+        function updateCounter(key, delta) {
+            counters[key] = Math.max(0, counters[key] + delta);
+            document.getElementById(`val-${key}`).innerText = counters[key];
+            autoSave();
+        }
+
+        function setAlliance(color) {
+            alliance = color;
+            document.getElementById('btn-red').classList.toggle('active', color === 'Red');
+            document.getElementById('btn-blue').classList.toggle('active', color === 'Blue');
+            autoSave();
+        }
+
+        function toggleTag(element, tag) {
+            if (tags.has(tag)) {
+                tags.delete(tag);
+                element.classList.remove('selected');
+            } else {
+                tags.add(tag);
+                element.classList.add('selected');
+            }
+            autoSave();
+        }
+
+        function autoSave() {
+            const formData = {
+                scoutName: document.getElementById('scoutName').value,
+                matchNumber: document.getElementById('matchNumber').value,
+                alliance: alliance,
+                driverStation: document.getElementById('driverStation').value,
+                teamNumber: document.getElementById('teamNumber').value,
+                noShow: document.getElementById('noShow').checked,
+                autoTaxi: document.getElementById('autoTaxi').checked,
+                hpPreference: document.getElementById('hpPreference').value,
+                facedDefense: document.getElementById('facedDefense').checked,
+                playedDefense: document.getElementById('playedDefense').checked,
+                defenseRating: document.getElementById('defenseRating').value,
+                bargeResult: document.getElementById('bargeResult').value,
+                climbSpeed: document.getElementById('climbSpeed').value,
+                climbedPartner: document.getElementById('climbedPartner').checked,
+                driverSkill: document.getElementById('driverSkill').value,
+                mechFailure: document.getElementById('mechFailure').value,
+                tippedOver: document.getElementById('tippedOver').checked,
+                tags: Array.from(tags),
+                notes: document.getElementById('notes').value,
+                counters: counters
+            };
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+            const statusEl = document.getElementById('save-status');
+            statusEl.innerText = "Saving...";
+            setTimeout(() => { statusEl.innerText = "Saved"; }, 300);
+        }
+
+        function loadSavedData() {
+            const dataRaw = localStorage.getItem(STORAGE_KEY);
+            if (!dataRaw) return;
+
+            try {
+                const data = JSON.parse(dataRaw);
+                document.getElementById('scoutName').value = data.scoutName || "";
+                document.getElementById('matchNumber').value = data.matchNumber || "";
+                if (data.alliance) setAlliance(data.alliance);
+                document.getElementById('driverStation').value = data.driverStation || "1";
+                document.getElementById('teamNumber').value = data.teamNumber || "";
+                document.getElementById('noShow').checked = !!data.noShow;
+                document.getElementById('autoTaxi').checked = !!data.autoTaxi;
+                document.getElementById('hpPreference').value = data.hpPreference || "None / Unclear";
+                document.getElementById('facedDefense').checked = !!data.facedDefense;
+                document.getElementById('playedDefense').checked = !!data.playedDefense;
+                document.getElementById('defenseRating').value = data.defenseRating || "0";
+                document.getElementById('bargeResult').value = data.bargeResult || "None / Parked";
+                document.getElementById('climbSpeed').value = data.climbSpeed || "N/A";
+                document.getElementById('climbedPartner').checked = !!data.climbedPartner;
+                document.getElementById('driverSkill').value = data.driverSkill || "3";
+                document.getElementById('mechFailure').value = data.mechFailure || "No";
+                document.getElementById('tippedOver').checked = !!data.tippedOver;
+                document.getElementById('notes').value = data.notes || "";
+
+                if (data.counters) {
+                    counters = { ...counters, ...data.counters };
+                    Object.keys(counters).forEach(k => {
+                        const el = document.getElementById(`val-${k}`);
+                        if (el) el.innerText = counters[k];
+                    });
+                }
+
+                if (data.tags) {
+                    tags = new Set(data.tags);
+                    document.querySelectorAll('.tag-chip').forEach(chip => {
+                        if (tags.has(chip.innerText.trim())) chip.classList.add('selected');
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to restore form state", e);
+            }
+        }
+
+        function confirmClear() {
+            if (confirm("Clear all form fields? This cannot be undone.")) {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload();
+            }
+        }
+
+        function submitData() {
+            const form = document.getElementById('scoutForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            if (!alliance) {
+                alert("Please select Red or Blue alliance.");
+                return;
+            }
+
+            const payload = {
+                metadata: {
+                    matchNumber: parseInt(document.getElementById('matchNumber').value, 10),
+                    alliance: alliance,
+                    driverStation: parseInt(document.getElementById('driverStation').value, 10),
+                    teamNumber: parseInt(document.getElementById('teamNumber').value, 10)
+                },
+                autonomous: {
+                    taxi: document.getElementById('autoTaxi').checked,
+                    coral: { l1: counters.autoCoralL1, l2: counters.autoCoralL2, l3: counters.autoCoralL3, l4: counters.autoCoralL4 },
+                    algae: { removed: counters.autoAlgaeRemoved, processor: counters.autoAlgaeProcessor, net: counters.autoAlgaeNet },
+                    misses: counters.autoMisses
+                },
+                teleop: {
+                    coral: { l1: counters.teleCoralL1, l2: counters.teleCoralL2, l3: counters.teleCoralL3, l4: counters.teleCoralL4 },
+                    algae: { removed: counters.teleAlgaeRemoved, processor: counters.teleAlgaeProcessor, net: counters.teleAlgaeNet },
+                    humanPlayerPreference: document.getElementById('hpPreference').value,
+                    facedDefense: document.getElementById('facedDefense').checked,
+                    playedDefense: document.getElementById('playedDefense').checked,
+                    defenseRating: parseInt(document.getElementById('defenseRating').value, 10)
+                },
+                endgame: {
+                    bargeResult: document.getElementById('bargeResult').value,
+                    climbSpeed: document.getElementById('climbSpeed').value,
+                    climbedWithPartner: document.getElementById('climbedPartner').checked
+                },
+                postMatch: {
+                    driverSkill: parseInt(document.getElementById('driverSkill').value, 10),
+                    mechanicalFailure: document.getElementById('mechFailure').value,
+                    tippedOver: document.getElementById('tippedOver').checked,
+                    fouls: counters.fouls,
+                    tags: Array.from(tags),
+                    notes: document.getElementById('notes').value
+                }
+            };
+
+            const compressed = compressFormData(payload);
+
+            document.getElementById('jsonOutput').innerText = compressed;
+            document.getElementById('charCount').innerText = `Payload Length: ${compressed.length} characters`;
+
+            // Render QR code using QRCode.js
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = "";
+            qrInstance = new QRCode(qrContainer, {
+                text: compressed,
+                width: 220,
+                height: 220,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.L
+            });
+
+            document.getElementById('jsonModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('jsonModal').style.display = 'none';
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            initCounters();
+            loadSavedData();
+
+            document.querySelectorAll("input, select, textarea").forEach(input => {
+                input.addEventListener("input", autoSave);
+                input.addEventListener("change", autoSave);
+            });
+        });
+    </script>
+</body>
+</html>
