@@ -77,12 +77,18 @@
       color: #fff;
     }
 
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
     .export-btn {
       background-color: var(--success-green);
       color: white;
       border: none;
-      padding: 12px 24px;
-      font-size: 1rem;
+      padding: 10px 18px;
+      font-size: 0.95rem;
       font-weight: bold;
       border-radius: 6px;
       cursor: pointer;
@@ -95,6 +101,27 @@
     }
 
     .export-btn:active {
+      transform: scale(0.98);
+    }
+
+    .reset-btn {
+      background-color: transparent;
+      color: #ef5350;
+      border: 1px solid var(--accent-red);
+      padding: 10px 18px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s, color 0.2s, transform 0.1s;
+    }
+
+    .reset-btn:hover {
+      background-color: var(--accent-red);
+      color: white;
+    }
+
+    .reset-btn:active {
       transform: scale(0.98);
     }
 
@@ -225,7 +252,10 @@
 
   <header>
     <h1>ShamScouting Standalone Receiver Utility</h1>
-    <button class="export-btn" onclick="exportToCSV()">EXPORT TO USB (.CSV)</button>
+    <div class="header-actions">
+      <button class="reset-btn" onclick="clearAllData()">RESET DATA</button>
+      <button class="export-btn" onclick="exportToCSV()">EXPORT TO USB (.CSV)</button>
+    </div>
   </header>
 
   <div class="dashboard">
@@ -350,6 +380,26 @@
     function saveRecords() {
       localStorage.setItem('shamscouting_records', JSON.stringify(records));
       renderMatrix();
+    }
+
+    // --- RESET / CLEAR DATA WITH DOUBLE CONFIRMATION ---
+    function clearAllData() {
+      const firstConfirm = confirm("⚠️ WARNING: This will permanently delete ALL stored match records on this device. Are you sure?");
+      if (!firstConfirm) return;
+
+      const secondConfirm = confirm("🚨 FINAL WARNING: Are you REALLY sure? All exported and unexported data will be lost forever!");
+      if (!secondConfirm) return;
+
+      // Execute purge
+      localStorage.removeItem('shamscouting_records');
+      records = [];
+      recentQueue = [];
+
+      // Reset Matrix & Queue UI
+      initMatrix();
+      document.getElementById('queue-list').innerHTML = '';
+
+      alert("Data wiped successfully.");
     }
 
     function parsePipeDelimitedPayload(payload) {
