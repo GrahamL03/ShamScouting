@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShamScouting - Pit Receiver Utility (Node D)</title>
+  
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #0f172a;
+      --card-bg: #1e293b;
+      --text-color: #f8fafc;
+      --accent-purple: #8b5cf6;
+      --success-green: #22c55e;
+      --error-red: #ef4444;
+      --border-color: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Flash Overlay for Scanner Feedback */
+    #flash-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.1s ease-in-out;
+    }
+
+    #flash-overlay.flash-success {
+      background-color: rgba(34, 197, 94, 0.75);
+      opacity: 1;
+    }
+
+    #flash-overlay.flash-error {
+      background-color: rgba(239, 68, 68, 0.75);
+      opacity: 1;
+    }
+
+    /* Header Controls */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--card-bg);
+      padding: 12px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-color);
+    }
+
+    .export-btn {
+      background-color: var(--accent-purple);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    .export-btn:hover {
+      background-color: #7c3aed;
+    }
+
+    .export-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Dashboard Layout */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 15px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .left-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      min-height: 0;
+    }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Scanner Viewfinder */
+    #scanner-card {
+      align-items: center;
+    }
+
+    #reader {
+      width: 100%;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #000;
+    }
+
+    /* Activity Log */
+    .log-card {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .log-card h2 {
+      font-size: 1rem;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 6px;
+      color: #94a3b8;
+    }
+
+    .log-list {
+      list-style: none;
+    }
+
+    .log-item {
+      background-color: #0f172a;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 4px solid var(--accent-purple);
+    }
+
+    /* Team Index HUD Grid */
+    .hud-card {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .hud-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .hud-header h2 {
+      font-size: 1.1rem;
+    }
+
+    .hud-stats {
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+
+    .grid-container {
+      flex: 1;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+      gap: 8px;
+      padding: 5px;
+      align-content: start;
+    }
+
+    .team-badge {
+      background-color: #0f172a;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 0.9rem;
+      color: #64748b;
+      transition: all 0.2s ease;
+    }
+
+    .team-badge.scouted {
+      background-color: rgba(34, 197, 94, 0.2);
+      border-color: var(--success-green);
+      color: #4ade80;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="flash-overlay"></div>
+
+  <header>
+    <h1>ShamScouting: Pit Receiver (Node D)</h1>
+    <button class="export-btn" onclick="exportToCSV()">EXPORT TO USB (.CSV)</button>
+  </header>
+
+  <div class="dashboard">
+    <div class="left-panel">
+      <div class="card" id="scanner-card">
+        <div id="reader"></div>
+      </div>
+
+      <div class="card log-card">
+        <h2>Live Scanned Activity</h2>
+        <ul id="log-list" class="log-list">
+          </ul>
+      </div>
+    </div>
+
+    <div class="card hud-card">
+      <div class="hud-header">
+        <h2>Pit Scouting Progress Grid</h2>
+        <div id="hud-stats" class="hud-stats">Scouted: 0 teams</div>
+      </div>
+      <div id="grid-container" class="grid-container">
+        </div>
+    </div>
+  </div>
+
+  <script>
+    // DECOMPRESSION SCHEMA (Pit Scouting - Reefscape)
+    // QR Payloads must start with 'P|' prefix
+    const HEADERS = [
+      "scout_id", "team_number", "drivetrain", "drive_motors", "weight_lbs", 
+      "frame_perimeter_in", "coral_intake", "algae_intake", "max_coral_level", 
+      "max_algae_target", "climber_type", "auto_l4", "auto_leave", "auto_net", 
+      "preferred_auto_start", "has_vision", "pit_notes", "scanned_at"
+    ];
+
+    let pitRecords = [];
+    let recentLog = [];
+    let html5QrcodeScanner = null;
+    let isProcessingScan = false;
+
+    // AUDIO SYNTHESIS FOR SCANNER FEEDBACK
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playAudioFeedback(type) {
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (type === 'success') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1046.50, audioCtx.currentTime); // C6 (High Beep)
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } else {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(130.81, audioCtx.currentTime); // C3 (Low Buzz)
+        gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      }
+    }
+
+    function triggerVisualFeedback(type) {
+      const overlay = document.getElementById('flash-overlay');
+      overlay.className = type === 'success' ? 'flash-success' : 'flash-error';
+      setTimeout(() => {
+        overlay.className = '';
+      }, 250);
+    }
+
+    // STORAGE & DATA PROCESSING
+    function loadSavedRecords() {
+      const stored = localStorage.getItem('shamscouting_pit_records');
+      if (stored) {
+        try {
+          pitRecords = JSON.parse(stored);
+        } catch(e) {
+          console.error("Error loading pit records from LocalStorage:", e);
+          pitRecords = [];
+        }
+      }
+      renderHUD();
+    }
+
+    function saveRecords() {
+      localStorage.setItem('shamscouting_pit_records', JSON.stringify(pitRecords));
+      renderHUD();
+    }
+
+    function parsePitPayload(payload) {
+      // Validate 'P|' prefix
+      if (!payload.startsWith('P|')) {
+        throw new Error("Invalid payload prefix. Must start with 'P|'");
+      }
+
+      // Remove prefix for parsing
+      const rawPayload = payload.substring(2);
+      const tokens = rawPayload.split('|');
+
+      if (tokens.length !== HEADERS.length) {
+        throw new Error(`Token count mismatch. Expected ${HEADERS.length}, received ${tokens.length}`);
+      }
+
+      const record = {};
+      HEADERS.forEach((header, index) => {
+        record[header] = tokens[index].trim();
+      });
+
+      return record;
+    }
+
+    function handleDecodedText(decodedText) {
+      if (isProcessingScan) return;
+      isProcessingScan = true;
+
+      try {
+        const record = parsePitPayload(decodedText);
+        
+        // Duplicate Check (by team_number)
+        const isDuplicate = pitRecords.some(r => r.team_number === record.team_number);
+
+        if (isDuplicate) {
+          playAudioFeedback('error');
+          triggerVisualFeedback('error');
+          console.warn(`Duplicate scan detected for Team ${record.team_number}`);
+        } else {
+          // Success Path
+          pitRecords.push(record);
+          saveRecords();
+          addToLog(record);
+
+          playAudioFeedback('success');
+          triggerVisualFeedback('success');
+        }
+      } catch (err) {
+        console.error("Payload Decoding Failed:", err.message);
+        playAudioFeedback('error');
+        triggerVisualFeedback('error');
+      }
+
+      // Cooldown timer to prevent accidental double-scans
+      setTimeout(() => {
+        isProcessingScan = false;
+      }, 1500);
+    }
+
+    // HUD & LOG UI RENDERERS
+    function renderHUD() {
+      const gridContainer = document.getElementById('grid-container');
+      const statsDisplay = document.getElementById('hud-stats');
+      gridContainer.innerHTML = '';
+
+      // Collect all unique scanned teams and sort them numerically
+      const scoutedTeams = [...new Set(pitRecords.map(r => parseInt(r.team_number)))]
+        .filter(n => !isNaN(n))
+        .sort((a, b) => a - b);
+
+      statsDisplay.textContent = `Scouted: ${scoutedTeams.length} team${scoutedTeams.length === 1 ? '' : 's'}`;
+
+      if (scoutedTeams.length === 0) {
+        gridContainer.innerHTML = '<div style="color: #64748b; grid-column: 1 / -1; padding: 20px; text-align: center;">No teams scouted yet. Scan a pit QR code to begin.</div>';
+        return;
+      }
+
+      scoutedTeams.forEach(teamNum => {
+        const badge = document.createElement('div');
+        badge.className = 'team-badge scouted';
+        badge.textContent = teamNum;
+        gridContainer.appendChild(badge);
+      });
+    }
+
+    function addToLog(record) {
+      recentLog.unshift(record);
+      if (recentLog.length > 5) recentLog.pop();
+
+      const logList = document.getElementById('log-list');
+      logList.innerHTML = '';
+
+      recentLog.forEach(item => {
+        const li = document.createElement('li');
+        li.className = 'log-item';
+        
+        const timestamp = new Date().toLocaleTimeString();
+        li.innerHTML = `
+          <span><strong>Team ${item.team_number}</strong> — ${item.drivetrain || 'Unknown Drive'}</span>
+          <span style="opacity: 0.6; font-size: 0.75rem;">${timestamp}</span>
+        `;
+        logList.appendChild(li);
+      });
+    }
+
+    // EXPORT FUNCTIONALITY
+    function exportToCSV() {
+      if (pitRecords.length === 0) {
+        alert("No pit records available to export.");
+        return;
+      }
+
+      const csvContent = Papa.unparse({
+        fields: HEADERS,
+        data: pitRecords
+      });
+
+      const filename = `pit_scouting_export.csv`;
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // CAMERA INITIALIZATION
+    function startScanner() {
+      html5QrcodeScanner = new Html5Qrcode("reader");
+
+      const config = {
+        fps: 15,
+        qrbox: { width: 240, height: 240 },
+        aspectRatio: 1.0
+      };
+
+      html5QrcodeScanner.start(
+        { facingMode: "environment" },
+        config,
+        handleDecodedText
+      ).catch(err => {
+        console.warn("Unable to access rear camera, switching to default...", err);
+        html5QrcodeScanner.start(
+          {},
+          config,
+          handleDecodedText
+        ).catch(e => console.error("Camera failed to start:", e));
+      });
+    }
+
+    // INITIALIZATION ON LOAD
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSavedRecords();
+      startScanner();
+    });
+  </script>
+</body>
+</html>
