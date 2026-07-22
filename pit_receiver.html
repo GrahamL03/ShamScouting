@@ -77,6 +77,12 @@
       color: var(--text-color);
     }
 
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
     .export-btn {
       background-color: var(--accent-purple);
       color: white;
@@ -95,6 +101,27 @@
     }
 
     .export-btn:active {
+      transform: scale(0.98);
+    }
+
+    .reset-btn {
+      background-color: transparent;
+      color: #f87171;
+      border: 1px solid var(--error-red);
+      padding: 10px 18px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background-color 0.2s, color 0.2s, transform 0.1s;
+    }
+
+    .reset-btn:hover {
+      background-color: var(--error-red);
+      color: white;
+    }
+
+    .reset-btn:active {
       transform: scale(0.98);
     }
 
@@ -224,7 +251,10 @@
 
   <header>
     <h1>ShamScouting: Pit Receiver (Node D)</h1>
-    <button class="export-btn" onclick="exportToCSV()">EXPORT TO USB (.CSV)</button>
+    <div class="header-actions">
+      <button class="reset-btn" onclick="clearAllData()">RESET DATA</button>
+      <button class="export-btn" onclick="exportToCSV()">EXPORT TO USB (.CSV)</button>
+    </div>
   </header>
 
   <div class="dashboard">
@@ -236,7 +266,7 @@
       <div class="card log-card">
         <h2>Live Scanned Activity</h2>
         <ul id="log-list" class="log-list">
-          </ul>
+        </ul>
       </div>
     </div>
 
@@ -246,18 +276,18 @@
         <div id="hud-stats" class="hud-stats">Scouted: 0 teams</div>
       </div>
       <div id="grid-container" class="grid-container">
-        </div>
+      </div>
     </div>
   </div>
 
   <script>
     // DECOMPRESSION SCHEMA (Pit Scouting - Reefscape)
-    // QR Payloads must start with 'P|' prefix
+    // 17 incoming payload fields from QR Code
     const HEADERS = [
       "scout_id", "team_number", "drivetrain", "drive_motors", "weight_lbs", 
       "frame_perimeter_in", "coral_intake", "algae_intake", "max_coral_level", 
       "max_algae_target", "climber_type", "auto_l4", "auto_leave", "auto_net", 
-      "preferred_auto_start", "has_vision", "pit_notes", "scanned_at"
+      "preferred_auto_start", "has_vision", "pit_notes"
     ];
 
     let pitRecords = [];
@@ -320,6 +350,26 @@
       renderHUD();
     }
 
+    // RESET DATA WITH DOUBLE CONFIRMATION
+    function clearAllData() {
+      const firstConfirm = confirm("⚠️ WARNING: Delete ALL pit scouting records on this device?");
+      if (!firstConfirm) return;
+
+      const secondConfirm = confirm("🚨 FINAL WARNING: Are you sure? This cannot be undone!");
+      if (!secondConfirm) return;
+
+      // Purge data
+      localStorage.removeItem('shamscouting_pit_records');
+      pitRecords = [];
+      recentLog = [];
+
+      // Reset UI elements
+      renderHUD();
+      document.getElementById('log-list').innerHTML = '';
+
+      alert("Pit scouting data wiped successfully.");
+    }
+
     function parsePitPayload(payload) {
       // Validate 'P|' prefix
       if (!payload.startsWith('P|')) {
@@ -338,6 +388,9 @@
       HEADERS.forEach((header, index) => {
         record[header] = tokens[index].trim();
       });
+
+      // Dynamically attach receive timestamp
+      record["scanned_at"] = new Date().toISOString();
 
       return record;
     }
@@ -414,10 +467,10 @@
         const li = document.createElement('li');
         li.className = 'log-item';
         
-        const timestamp = new Date().toLocaleTimeString();
+        const timeStr = item.scanned_at ? new Date(item.scanned_at).toLocaleTimeString() : new Date().toLocaleTimeString();
         li.innerHTML = `
           <span><strong>Team ${item.team_number}</strong> — ${item.drivetrain || 'Unknown Drive'}</span>
-          <span style="opacity: 0.6; font-size: 0.75rem;">${timestamp}</span>
+          <span style="opacity: 0.6; font-size: 0.75rem;">${timeStr}</span>
         `;
         logList.appendChild(li);
       });
@@ -430,8 +483,10 @@
         return;
       }
 
+      const csvFields = [...HEADERS, "scanned_at"];
+
       const csvContent = Papa.unparse({
-        fields: HEADERS,
+        fields: csvFields,
         data: pitRecords
       });
 
